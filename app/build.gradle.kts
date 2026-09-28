@@ -13,9 +13,9 @@ android {
         applicationId = "com.grandpalauncher"
         minSdk = 23
         targetSdk = 35
-        // Keep the code monotonic so this public 1.0 release updates earlier tablet builds.
-        versionCode = 100
-        versionName = "1.0"
+        // Keep the code monotonic so public releases update earlier tablet builds.
+        versionCode = 110
+        versionName = "1.1"
     }
 
     compileOptions {

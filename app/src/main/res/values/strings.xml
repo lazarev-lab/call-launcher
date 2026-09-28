@@ -32,6 +32,17 @@
     <string name="choose_tile">Choose a tile to configure</string>
     <string name="whatsapp_contact">WhatsApp contact: %1$s</string>
     <string name="whatsapp_contact_label">WhatsApp contact</string>
+    <string name="tile_action_heading">Tile action</string>
+    <string name="selected_action">Selected</string>
+    <string name="open_whatsapp">Open WhatsApp</string>
+    <string name="open_whatsapp_description">Launch the WhatsApp application</string>
+    <string name="open_other_app">Open another application</string>
+    <string name="choose_installed_app">Choose from installed applications</string>
+    <string name="choose_application">Choose an application</string>
+    <string name="no_apps_found">No launchable applications found</string>
+    <string name="app_not_available">The selected application is no longer available</string>
+    <string name="open_app">OPEN APP</string>
+    <string name="open_whatsapp_home">OPEN WHATSAPP</string>
     <string name="not_configured">not configured</string>
     <string name="contact">Contact</string>
     <string name="name_hint">Name on the home screen</string>
