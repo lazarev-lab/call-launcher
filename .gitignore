@@ -1,0 +1,63 @@
+# Gradle and Kotlin build state
+.gradle/
+.kotlin/
+**/build/
+
+# Local Android SDK configuration
+local.properties
+
+# Android Studio / IntelliJ IDEA
+.idea/
+*.iml
+*.ipr
+*.iws
+out/
+captures/
+.navigation/
+
+# Native Android build output
+.externalNativeBuild/
+.cxx/
+
+# Packaged application artifacts
+*.apk
+*.aab
+*.ap_
+*.dex
+
+# Signing keys and local secrets
+*.jks
+*.keystore
+keystore.properties
+secrets.properties
+.env
+.env.*
+
+# Operating-system files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Logs and temporary files
+*.log
+*.tmp
+*.temp
+*.bak
+*.swp
+*~
+
+# Local design references and ADB inspection artifacts
+/.stitch-reference*/
+/app-en-home.png
+/current-tablet.png
+/final-ru.png
+/home-v*.png
+/locales*.png
+/settings-tablet*.png
+/settings-v*.png
+/window.xml
+
+# Keep publication screenshots versioned
+!linkedin-screenshots/
+!linkedin-screenshots/**
+!Call-Launcher-English-Settings*.png
