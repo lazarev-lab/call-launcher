@@ -67,6 +67,7 @@ class MainActivity : Activity() {
         importExistingEndpointOnce()
         migrateAutoAnswerPreference()
         migrateWhatsAppContactNames()
+        removeObsoleteTileActions()
         showHome()
     }
 
@@ -161,25 +162,12 @@ class MainActivity : Activity() {
     }
 
     private fun contactCard(slot: Int, tileCount: Int): View {
-        val tileAction = tileAction(slot)
-        val selectedPackage = prefs.getString("app_package_$slot", null)
-        val selectedAppLabel = prefs.getString("app_label_$slot", null)
-        val fallbackName = when (tileAction) {
-            TILE_ACTION_WHATSAPP -> "WhatsApp"
-            TILE_ACTION_APP -> selectedAppLabel
-            else -> null
-        }
         val name = prefs.getString("name_$slot", null)
-            ?: if (isScreenshotDemo()) DEMO_NAMES[slot] else fallbackName
+            ?: if (isScreenshotDemo()) DEMO_NAMES[slot] else null
         val jid = prefs.getString("jid_$slot", null)
             ?: if (isScreenshotDemo()) "demo-$slot" else null
         val photoUri = prefs.getString("photo_$slot", null)
-        val configured = when (tileAction) {
-            TILE_ACTION_WHATSAPP -> packageManager.getLaunchIntentForPackage(WHATSAPP_PACKAGE) != null
-            TILE_ACTION_APP -> !selectedPackage.isNullOrBlank() &&
-                packageManager.getLaunchIntentForPackage(selectedPackage) != null
-            else -> !jid.isNullOrBlank()
-        }
+        val configured = !jid.isNullOrBlank()
         val brightTiles = prefs.getBoolean("bright_tile_colors", false)
         val tileTextColor = if (brightTiles) Color.rgb(27, 39, 40) else Color.WHITE
         return LinearLayout(this).apply {
@@ -210,18 +198,15 @@ class MainActivity : Activity() {
             }, LinearLayout.LayoutParams(-1, 0, 1f))
             addView(TextView(this@MainActivity).apply {
                 val isAudio = prefs.getString("call_type_$slot", CALL_TYPE_VIDEO) == CALL_TYPE_AUDIO
-                text = if (!configured) getString(R.string.configure) else when (tileAction) {
-                    TILE_ACTION_WHATSAPP -> getString(R.string.open_whatsapp_home)
-                    TILE_ACTION_APP -> getString(R.string.open_app)
-                    else -> getString(if (isAudio) R.string.audio_call else R.string.video_call)
-                }
+                text = if (configured) getString(if (isAudio) R.string.audio_call else R.string.video_call)
+                    else getString(R.string.configure)
                 textSize = if (tileCount == 4) 30f else 36f
                 typeface = Typeface.DEFAULT_BOLD
                 gravity = Gravity.CENTER
                 setTextColor(if (brightTiles) Color.rgb(36, 50, 49)
                     else if (configured) Color.rgb(215, 244, 225) else Color.rgb(218, 224, 222))
             }, LinearLayout.LayoutParams(-1, dp(if (tileCount == 4) 48 else 60)))
-            setOnClickListener { if (configured) launchTileAction(slot) else showSettings(slot) }
+            setOnClickListener { if (configured) startCall(slot) else showSettings(slot) }
         }
     }
 
@@ -378,9 +363,6 @@ class MainActivity : Activity() {
             val currentWhatsAppName = prefs.getString("whatsapp_name_$selectedSlot", null)
                 ?.trim().orEmpty().ifBlank { currentName }
             val whatsAppName = currentWhatsAppName.ifBlank { getString(R.string.not_configured) }
-            val currentTileAction = tileAction(selectedSlot)
-            val selectedAppLabel = prefs.getString("app_label_$selectedSlot", null)
-                ?.trim().orEmpty()
             val currentAction = if (prefs.getString("call_type_$selectedSlot", CALL_TYPE_VIDEO) == CALL_TYPE_AUDIO) {
                 getString(R.string.audio_call_option)
             } else {
@@ -430,32 +412,22 @@ class MainActivity : Activity() {
 
             tileContent.addView(settingsActionRow(
                 getString(R.string.whatsapp_contact_label),
-                if (currentTileAction == TILE_ACTION_CONTACT) {
-                    "$whatsAppName • ${getString(R.string.selected_action)}"
-                } else whatsAppName
+                whatsAppName
             ) { openWhatsAppPicker() }, LinearLayout.LayoutParams(-1, dp(76)).apply { topMargin = dp(12) })
 
             tileContent.addView(settingsActionRow(
                 getString(R.string.open_whatsapp),
-                if (currentTileAction == TILE_ACTION_WHATSAPP) getString(R.string.selected_action)
-                else getString(R.string.open_whatsapp_description)
+                getString(R.string.open_whatsapp_description)
             ) {
-                selectApplicationAction(selectedSlot, TILE_ACTION_WHATSAPP, WHATSAPP_PACKAGE, "WhatsApp")
-                renderTile(selectedSlot)
+                launchApplication(WHATSAPP_PACKAGE)
             }, LinearLayout.LayoutParams(-1, dp(76)).apply { topMargin = dp(12) })
 
             tileContent.addView(settingsActionRow(
                 getString(R.string.open_other_app),
-                when {
-                    currentTileAction == TILE_ACTION_APP && selectedAppLabel.isNotBlank() ->
-                        "$selectedAppLabel • ${getString(R.string.selected_action)}"
-                    selectedAppLabel.isNotBlank() -> selectedAppLabel
-                    else -> getString(R.string.choose_installed_app)
-                }
+                getString(R.string.choose_installed_app)
             ) {
-                showInstalledAppPicker { packageName, label ->
-                    selectApplicationAction(selectedSlot, TILE_ACTION_APP, packageName, label)
-                    renderTile(selectedSlot)
+                showInstalledAppPicker { packageName, _ ->
+                    launchApplication(packageName)
                 }
             }, LinearLayout.LayoutParams(-1, dp(76)).apply { topMargin = dp(12) })
 
@@ -464,12 +436,10 @@ class MainActivity : Activity() {
                 displayName
             ) { showRenameDialog() }, LinearLayout.LayoutParams(-1, dp(76)).apply { topMargin = dp(12) })
 
-            if (currentTileAction == TILE_ACTION_CONTACT) {
-                tileContent.addView(settingsActionRow(
-                    getString(R.string.default_action_setting),
-                    currentAction
-                ) { showCallTypeDialog() }, LinearLayout.LayoutParams(-1, dp(76)).apply { topMargin = dp(12) })
-            }
+            tileContent.addView(settingsActionRow(
+                getString(R.string.default_action_setting),
+                currentAction
+            ) { showCallTypeDialog() }, LinearLayout.LayoutParams(-1, dp(76)).apply { topMargin = dp(12) })
 
             val hasPhoto = !prefs.getString("photo_$selectedSlot", null).isNullOrBlank()
             tileContent.addView(settingsActionRow(
@@ -477,23 +447,21 @@ class MainActivity : Activity() {
                 getString(if (hasPhoto) R.string.status_selected else R.string.status_not_selected)
             ) { openPhotoPicker() }, LinearLayout.LayoutParams(-1, dp(76)).apply { topMargin = dp(12) })
 
-            if (currentTileAction == TILE_ACTION_CONTACT) {
-                tileContent.addView(settingsToggle(
-                    getString(R.string.auto_answer_for_tile),
-                    getString(R.string.auto_answer_for_tile_description),
-                    prefs.getBoolean("auto_answer_$selectedSlot", false)
-                ) { checked ->
-                    prefs.edit().putBoolean("auto_answer_$selectedSlot", checked).apply()
-                    if (checked && !isAutoAnswerServiceEnabled()) {
-                        toast(getString(R.string.auto_answer_enable_service))
-                    }
-                }, LinearLayout.LayoutParams(-1, dp(76)).apply { topMargin = dp(12) })
+            tileContent.addView(settingsToggle(
+                getString(R.string.auto_answer_for_tile),
+                getString(R.string.auto_answer_for_tile_description),
+                prefs.getBoolean("auto_answer_$selectedSlot", false)
+            ) { checked ->
+                prefs.edit().putBoolean("auto_answer_$selectedSlot", checked).apply()
+                if (checked && !isAutoAnswerServiceEnabled()) {
+                    toast(getString(R.string.auto_answer_enable_service))
+                }
+            }, LinearLayout.LayoutParams(-1, dp(76)).apply { topMargin = dp(12) })
 
-                tileContent.addView(settingsActionRow(
-                    getString(R.string.test_call),
-                    getString(R.string.test_call_description)
-                ) { startCall(selectedSlot) }, LinearLayout.LayoutParams(-1, dp(76)).apply { topMargin = dp(12) })
-            }
+            tileContent.addView(settingsActionRow(
+                getString(R.string.test_call),
+                getString(R.string.test_call_description)
+            ) { startCall(selectedSlot) }, LinearLayout.LayoutParams(-1, dp(76)).apply { topMargin = dp(12) })
             scroll.post { scroll.scrollTo(0, savedScrollY) }
         }
 
@@ -915,30 +883,6 @@ class MainActivity : Activity() {
             .show()
     }
 
-    private fun tileAction(slot: Int): String =
-        prefs.getString("tile_action_$slot", TILE_ACTION_CONTACT) ?: TILE_ACTION_CONTACT
-
-    private fun selectApplicationAction(slot: Int, action: String, packageName: String, label: String) {
-        if (packageManager.getLaunchIntentForPackage(packageName) == null) {
-            toast(getString(R.string.app_not_available))
-            return
-        }
-        val currentName = prefs.getString("name_$slot", null)?.trim()
-        val previousAppLabel = prefs.getString("app_label_$slot", null)?.trim()
-        val contactName = prefs.getString("whatsapp_name_$slot", null)?.trim()
-        val shouldUpdateName = currentName.isNullOrEmpty() ||
-            currentName.equals(previousAppLabel, ignoreCase = true) ||
-            currentName.equals(contactName, ignoreCase = true)
-        prefs.edit()
-            .putString("tile_action_$slot", action)
-            .putString("app_package_$slot", packageName)
-            .putString("app_label_$slot", label)
-            .apply {
-                if (shouldUpdateName) putString("name_$slot", label)
-            }
-            .apply()
-    }
-
     @Suppress("DEPRECATION")
     private fun showInstalledAppPicker(onSelected: (String, String) -> Unit) {
         val launcherIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
@@ -990,14 +934,6 @@ class MainActivity : Activity() {
             }
             .setNegativeButton(R.string.cancel, null)
             .show()
-    }
-
-    private fun launchTileAction(slot: Int) {
-        when (tileAction(slot)) {
-            TILE_ACTION_WHATSAPP -> launchApplication(WHATSAPP_PACKAGE)
-            TILE_ACTION_APP -> launchApplication(prefs.getString("app_package_$slot", null))
-            else -> startCall(slot)
-        }
     }
 
     private fun launchApplication(packageName: String?) {
@@ -1053,15 +989,12 @@ class MainActivity : Activity() {
         }
         val callMime = callMime(selectedSlot)
         val previousWhatsAppName = prefs.getString("whatsapp_name_$selectedSlot", null)
-        val previousAppLabel = prefs.getString("app_label_$selectedSlot", null)
         val currentDisplayName = prefs.getString("name_$selectedSlot", null)
         val shouldUpdateDisplayName = currentDisplayName.isNullOrBlank() ||
-            previousWhatsAppName.isNullOrBlank() || currentDisplayName == previousWhatsAppName ||
-            currentDisplayName == previousAppLabel
+            previousWhatsAppName.isNullOrBlank() || currentDisplayName == previousWhatsAppName
         val endpointId = createEndpoint(selectedSlot, whatsAppName, jid, callMime)
         prefs.edit().putString("jid_$selectedSlot", jid)
             .putString("whatsapp_name_$selectedSlot", whatsAppName)
-            .putString("tile_action_$selectedSlot", TILE_ACTION_CONTACT)
             .apply {
                 if (shouldUpdateDisplayName) putString("name_$selectedSlot", whatsAppName)
             }
@@ -1169,6 +1102,16 @@ class MainActivity : Activity() {
                 }
             }
         }
+    }
+
+    private fun removeObsoleteTileActions() {
+        val editor = prefs.edit()
+        repeat(4) { slot ->
+            editor.remove("tile_action_$slot")
+                .remove("app_package_$slot")
+                .remove("app_label_$slot")
+        }
+        editor.apply()
     }
 
     private fun refreshWhatsAppContactName(slot: Int): Boolean {
@@ -1308,9 +1251,6 @@ class MainActivity : Activity() {
         private const val AUDIO_MIME = "vnd.android.cursor.item/vnd.com.whatsapp.voip.call"
         private const val CALL_TYPE_VIDEO = "video"
         private const val CALL_TYPE_AUDIO = "audio"
-        private const val TILE_ACTION_CONTACT = "whatsapp_contact"
-        private const val TILE_ACTION_WHATSAPP = "whatsapp_app"
-        private const val TILE_ACTION_APP = "other_app"
         private const val GITHUB_URL = "https://github.com/lazarev-lab/call-launcher"
         private const val REQUEST_WHATSAPP = 1001
         private const val REQUEST_PHOTO = 1002

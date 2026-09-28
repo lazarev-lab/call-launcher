@@ -14,8 +14,8 @@ android {
         minSdk = 23
         targetSdk = 35
         // Keep the code monotonic so public releases update earlier tablet builds.
-        versionCode = 110
-        versionName = "1.1"
+        versionCode = 111
+        versionName = "1.1.1"
     }
 
     compileOptions {

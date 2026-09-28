@@ -32,8 +32,7 @@
     <string name="choose_tile">Выберите плитку для настройки</string>
     <string name="whatsapp_contact">Контакт WhatsApp: %1$s</string>
     <string name="whatsapp_contact_label">Контакт WhatsApp</string>
-    <string name="tile_action_heading">Действие плитки</string>
-    <string name="selected_action">Выбрано</string>
+    <string name="tile_action_heading">Быстрый запуск</string>
     <string name="open_whatsapp">Открыть WhatsApp</string>
     <string name="open_whatsapp_description">Запустить приложение WhatsApp</string>
     <string name="open_other_app">Открыть другое приложение</string>
@@ -41,8 +40,6 @@
     <string name="choose_application">Выберите приложение</string>
     <string name="no_apps_found">Не найдено приложений, которые можно запустить</string>
     <string name="app_not_available">Выбранное приложение больше недоступно</string>
-    <string name="open_app">ОТКРЫТЬ ПРИЛОЖЕНИЕ</string>
-    <string name="open_whatsapp_home">ОТКРЫТЬ WHATSAPP</string>
     <string name="not_configured">не настроено</string>
     <string name="contact">Контакт</string>
     <string name="name_hint">Имя на главном экране</string>
