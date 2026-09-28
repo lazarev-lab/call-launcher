@@ -6,7 +6,7 @@
 
 [![Android](https://img.shields.io/badge/Android-6.0%2B-3DDC84?style=for-the-badge&logo=android&logoColor=white)](https://www.android.com/)
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.0.21-7F52FF?style=for-the-badge&logo=kotlin&logoColor=white)](https://kotlinlang.org/)
-[![Version](https://img.shields.io/badge/version-2.6-10B981?style=for-the-badge)](#)
+[![Version](https://img.shields.io/badge/version-1.0-10B981?style=for-the-badge)](#)
 [![WhatsApp](https://img.shields.io/badge/WhatsApp-Calling-25D366?style=for-the-badge&logo=whatsapp&logoColor=white)](https://www.whatsapp.com/)
 
 **Large contact tiles · One-tap calls · Per-contact auto-answer · English and Russian**
@@ -87,6 +87,8 @@ The interface is intentionally calm, high-contrast and easy to navigate on a tab
 | **4** | Four tiles in a 2 × 2 grid |
 
 ## 🛠️ Build and install
+
+Download the ready-to-install APK from [GitHub Releases](https://github.com/lazarev-lab/call-launcher/releases).
 
 ### Requirements
 

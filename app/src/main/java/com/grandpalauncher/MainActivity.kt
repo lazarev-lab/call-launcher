@@ -65,6 +65,7 @@ class MainActivity : Activity() {
         requestNeededPermissions()
         importExistingEndpointOnce()
         migrateAutoAnswerPreference()
+        migrateWhatsAppContactNames()
         showHome()
     }
 
@@ -356,6 +357,9 @@ class MainActivity : Activity() {
             tileContent.removeAllViews()
             val currentName = prefs.getString("name_$selectedSlot", "") ?: ""
             val displayName = currentName.ifBlank { getString(R.string.not_configured) }
+            val currentWhatsAppName = prefs.getString("whatsapp_name_$selectedSlot", null)
+                ?.trim().orEmpty().ifBlank { currentName }
+            val whatsAppName = currentWhatsAppName.ifBlank { getString(R.string.not_configured) }
             val currentAction = if (prefs.getString("call_type_$selectedSlot", CALL_TYPE_VIDEO) == CALL_TYPE_AUDIO) {
                 getString(R.string.audio_call_option)
             } else {
@@ -367,7 +371,7 @@ class MainActivity : Activity() {
                 setPadding(dp(14), dp(12), dp(14), dp(12))
                 background = outlinedRounded(SETTINGS_SURFACE_DARK, SETTINGS_BORDER, 12f, 1)
                 addView(TextView(this@MainActivity).apply {
-                    text = currentName.trim().firstOrNull()?.uppercaseChar()?.toString() ?: "+"
+                    text = currentWhatsAppName.firstOrNull()?.uppercaseChar()?.toString() ?: "+"
                     textSize = 31.25f
                     typeface = Typeface.DEFAULT_BOLD
                     gravity = Gravity.CENTER
@@ -384,7 +388,7 @@ class MainActivity : Activity() {
                         setTextColor(ACCENT_COLOR)
                     })
                     addView(TextView(this@MainActivity).apply {
-                        text = displayName
+                        text = whatsAppName
                         textSize = 26.25f
                         typeface = Typeface.DEFAULT_BOLD
                         setTextColor(SETTINGS_TEXT)
@@ -394,7 +398,7 @@ class MainActivity : Activity() {
 
             tileContent.addView(settingsActionRow(
                 getString(R.string.whatsapp_contact_label),
-                displayName
+                whatsAppName
             ) { openWhatsAppPicker() }, LinearLayout.LayoutParams(-1, dp(76)).apply { topMargin = dp(12) })
 
             tileContent.addView(settingsActionRow(
@@ -468,7 +472,25 @@ class MainActivity : Activity() {
             typeface = Typeface.DEFAULT_BOLD
             gravity = Gravity.CENTER
             setTextColor(SETTINGS_TEXT)
-            setPadding(dp(16), 0, dp(16), dp(10))
+            setPadding(dp(16), 0, dp(16), dp(4))
+        }, LinearLayout.LayoutParams(-1, -2))
+        body.addView(TextView(this).apply {
+            text = getString(R.string.license_info)
+            textSize = 16f
+            gravity = Gravity.CENTER
+            setTextColor(SETTINGS_SECONDARY_TEXT)
+            setPadding(dp(16), dp(4), dp(16), dp(2))
+        }, LinearLayout.LayoutParams(-1, -2))
+        body.addView(TextView(this).apply {
+            text = getString(R.string.github_repository)
+            textSize = 16f
+            gravity = Gravity.CENTER
+            setTextColor(ACCENT_COLOR)
+            paintFlags = paintFlags or android.graphics.Paint.UNDERLINE_TEXT_FLAG
+            setPadding(dp(16), 0, dp(16), dp(12))
+            setOnClickListener {
+                runCatching { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(GITHUB_URL))) }
+            }
         }, LinearLayout.LayoutParams(-1, -2))
 
         renderTile(initialSlot)
@@ -690,6 +712,7 @@ class MainActivity : Activity() {
         }
         fun renderTileSettings(slot: Int) {
             selectedSlot = slot
+            refreshWhatsAppContactName(selectedSlot)
             tileButtons.forEachIndexed { index, button ->
                 button.setTextColor(if (index == selectedSlot) Color.WHITE else SETTINGS_TEXT)
                 button.backgroundTintList = ColorStateList.valueOf(
@@ -863,16 +886,25 @@ class MainActivity : Activity() {
     private fun saveWhatsAppSelection(result: Intent) {
         val shortcut = result.getParcelableExtra<Intent>(Intent.EXTRA_SHORTCUT_INTENT)
         val jid = shortcut?.getStringExtra("jid")
-        val displayName = shortcut?.getStringExtra("displayname")
+        val whatsAppName = shortcut?.getStringExtra("displayname")
             ?: result.getStringExtra(Intent.EXTRA_SHORTCUT_NAME) ?: getString(R.string.contact)
         if (jid.isNullOrBlank()) {
             toast(getString(R.string.missing_jid))
             return
         }
         val callMime = callMime(selectedSlot)
-        val endpointId = createEndpoint(selectedSlot, displayName, jid, callMime)
-        prefs.edit().putString("jid_$selectedSlot", jid).putString("name_$selectedSlot", displayName)
-            .putLong("endpoint_$selectedSlot", endpointId).putString("endpoint_mime_$selectedSlot", callMime).apply()
+        val previousWhatsAppName = prefs.getString("whatsapp_name_$selectedSlot", null)
+        val currentDisplayName = prefs.getString("name_$selectedSlot", null)
+        val shouldUpdateDisplayName = currentDisplayName.isNullOrBlank() ||
+            previousWhatsAppName.isNullOrBlank() || currentDisplayName == previousWhatsAppName
+        val endpointId = createEndpoint(selectedSlot, whatsAppName, jid, callMime)
+        prefs.edit().putString("jid_$selectedSlot", jid)
+            .putString("whatsapp_name_$selectedSlot", whatsAppName)
+            .apply {
+                if (shouldUpdateDisplayName) putString("name_$selectedSlot", whatsAppName)
+            }
+            .putLong("endpoint_$selectedSlot", endpointId)
+            .putString("endpoint_mime_$selectedSlot", callMime).apply()
         toast(getString(R.string.contact_selected))
         showSettings(selectedSlot)
     }
@@ -921,8 +953,7 @@ class MainActivity : Activity() {
         val mime = callMime(slot)
         var endpointId = prefs.getLong("endpoint_$slot", -1L)
         if (!endpointExists(endpointId, jid, mime)) {
-            endpointId = createEndpoint(slot, prefs.getString("name_$slot", getString(R.string.contact))
-                ?: getString(R.string.contact), jid, mime)
+            endpointId = createEndpoint(slot, whatsAppContactName(slot), jid, mime)
             prefs.edit().putLong("endpoint_$slot", endpointId).putString("endpoint_mime_$slot", mime).apply()
         }
         if (endpointId <= 0) {
@@ -947,6 +978,10 @@ class MainActivity : Activity() {
     private fun callMime(slot: Int): String =
         if (prefs.getString("call_type_$slot", CALL_TYPE_VIDEO) == CALL_TYPE_AUDIO) AUDIO_MIME else VIDEO_MIME
 
+    private fun whatsAppContactName(slot: Int): String =
+        (prefs.getString("whatsapp_name_$slot", null) ?: prefs.getString("name_$slot", null))
+            ?.trim()?.takeIf(String::isNotEmpty) ?: getString(R.string.contact)
+
     private fun importExistingEndpointOnce() {
         if (prefs.getBoolean("import_done", false)) return
         prefs.edit().putBoolean("import_done", true).apply()
@@ -957,8 +992,47 @@ class MainActivity : Activity() {
             if (it.moveToFirst()) prefs.edit().putLong("endpoint_0", it.getLong(0))
                 .putString("jid_0", it.getString(1))
                 .putString("name_0", it.getString(2) ?: getString(R.string.contact))
+                .putString("whatsapp_name_0", it.getString(2) ?: getString(R.string.contact))
                 .putString("endpoint_mime_0", VIDEO_MIME).apply()
         }
+    }
+
+    private fun migrateWhatsAppContactNames() {
+        repeat(4) { slot ->
+            if (!refreshWhatsAppContactName(slot) && !prefs.contains("whatsapp_name_$slot") &&
+                !prefs.getString("jid_$slot", null).isNullOrBlank()) {
+                val existingName = prefs.getString("name_$slot", null)?.trim()
+                if (!existingName.isNullOrEmpty()) {
+                    prefs.edit().putString("whatsapp_name_$slot", existingName).apply()
+                }
+            }
+        }
+    }
+
+    private fun refreshWhatsAppContactName(slot: Int): Boolean {
+        if (checkSelfPermission(Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) return false
+        val endpointId = prefs.getLong("endpoint_$slot", -1L)
+        val jid = prefs.getString("jid_$slot", null)?.trim()
+        if (endpointId <= 0 || jid.isNullOrEmpty()) return false
+        val contactName = contentResolver.query(
+            ContentUris.withAppendedId(ContactsContract.Data.CONTENT_URI, endpointId),
+            arrayOf(
+                ContactsContract.Data.DISPLAY_NAME,
+                ContactsContract.Data.DATA1,
+                ContactsContract.Data.MIMETYPE
+            ),
+            null,
+            null,
+            null
+        )?.use { cursor ->
+            if (!cursor.moveToFirst() || cursor.getString(1) != jid ||
+                cursor.getString(2)?.contains("whatsapp", ignoreCase = true) != true) null
+            else cursor.getString(0)?.trim()?.takeIf(String::isNotEmpty)
+        } ?: return false
+        if (prefs.getString("whatsapp_name_$slot", null) != contactName) {
+            prefs.edit().putString("whatsapp_name_$slot", contactName).apply()
+        }
+        return true
     }
 
     private fun diagnosticsText(slot: Int): String {
@@ -1072,6 +1146,7 @@ class MainActivity : Activity() {
         private const val AUDIO_MIME = "vnd.android.cursor.item/vnd.com.whatsapp.voip.call"
         private const val CALL_TYPE_VIDEO = "video"
         private const val CALL_TYPE_AUDIO = "audio"
+        private const val GITHUB_URL = "https://github.com/lazarev-lab/call-launcher"
         private const val REQUEST_WHATSAPP = 1001
         private const val REQUEST_PHOTO = 1002
         private val TILE_COLORS = intArrayOf(

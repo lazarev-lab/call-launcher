@@ -82,4 +82,6 @@
     <string name="diagnostic_auto_service">Служба автоответа: %1$s</string>
     <string name="developer_info_title">Информация о разработчике</string>
     <string name="developer_info">Lazarev Software\nLazarev Vladislav</string>
+    <string name="license_info">Лицензия: MIT</string>
+    <string name="github_repository">github.com/lazarev-lab/call-launcher</string>
 </resources>

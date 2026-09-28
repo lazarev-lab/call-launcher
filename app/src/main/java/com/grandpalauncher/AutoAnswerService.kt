@@ -59,7 +59,8 @@ class AutoAnswerService : AccessibilityService() {
     private fun enabledContactNames(prefs: SharedPreferences): List<String> =
         (0..3).mapNotNull { slot ->
             if (!prefs.getBoolean("auto_answer_$slot", false)) return@mapNotNull null
-            prefs.getString("name_$slot", null)?.trim()?.takeIf(String::isNotEmpty)
+            (prefs.getString("whatsapp_name_$slot", null) ?: prefs.getString("name_$slot", null))
+                ?.trim()?.takeIf(String::isNotEmpty)
         }
 
     private fun isAutoAnswerEnabledForCaller(prefs: SharedPreferences, caller: String?): Boolean {
